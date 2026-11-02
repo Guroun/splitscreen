@@ -1,21 +1,28 @@
 package net.pcal.splitscreen.common;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.InputWithModifiers;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 
 public class LayoutPreviewButton extends AbstractButton {
 
     private static final int COLOR_BG_DARK = 0x99000000;
+    private static final int COLOR_BG_HOVER = 0x991A331A;
     private static final int COLOR_WHITE_15 = 0x26FFFFFF;
     private static final int COLOR_BORDER = 0x80FFFFFF;
+    private static final int COLOR_BORDER_HOVER = 0x8044CC44;
+    private static final int COLOR_BORDER_INACTIVE = 0x40404040;
 
     private final SplitscreenLayout layout;
     private final Font font;
     private final Runnable onPressCallback;
+    private boolean wasHovered;
 
     public LayoutPreviewButton(int x, int y, int width, int height,
                                Component label, SplitscreenLayout layout,
@@ -28,6 +35,7 @@ public class LayoutPreviewButton extends AbstractButton {
 
     @Override
     public void onPress(InputWithModifiers input) {
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F));
         if (this.onPressCallback != null) {
             this.onPressCallback.run();
         }
@@ -39,8 +47,19 @@ public class LayoutPreviewButton extends AbstractButton {
         int y = getY();
         int w = getWidth();
         int h = getHeight();
+        boolean hovered = isHovered();
 
-        graphics.fill(x, y, x + w, y + h, COLOR_BG_DARK);
+        if (hovered && !wasHovered && active) {
+            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.2F));
+        }
+        wasHovered = hovered;
+
+        int bgColor = (hovered && active) ? COLOR_BG_HOVER : COLOR_BG_DARK;
+        int borderColor = !active ? COLOR_BORDER_INACTIVE : (hovered ? COLOR_BORDER_HOVER : COLOR_BORDER);
+
+        graphics.fill(x, y, x + w, y + h, bgColor);
+
+        drawOuterBorder(graphics, x, y, w, h, borderColor);
 
         int previewX = x + 8;
         int previewY = y + 8;
@@ -49,9 +68,17 @@ public class LayoutPreviewButton extends AbstractButton {
 
         drawLayoutPreview(graphics, previewX, previewY, previewW, previewH);
 
+        int textColor = active ? 0xFFFFFFFF : 0xFF666666;
         int textX = x + w / 2 - this.font.width(getMessage()) / 2;
         int textY = y + h - 18;
-        graphics.text(this.font, getMessage(), textX, textY, 0xFFFFFFFF, true);
+        graphics.text(this.font, getMessage(), textX, textY, textColor, true);
+    }
+
+    private void drawOuterBorder(GuiGraphicsExtractor graphics, int x, int y, int w, int h, int color) {
+        graphics.fill(x, y, x + w, y + 2, color);
+        graphics.fill(x, y + h - 2, x + w, y + h, color);
+        graphics.fill(x, y, x + 2, y + h, color);
+        graphics.fill(x + w - 2, y, x + w, y + h, color);
     }
 
     private void drawLayoutPreview(GuiGraphicsExtractor graphics, int x, int y, int w, int h) {

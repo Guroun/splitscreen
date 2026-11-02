@@ -1,7 +1,6 @@
 package net.pcal.splitscreen.fabric.mixins;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.GameType;
+import net.minecraft.server.MinecraftServer;
 import net.pcal.splitscreen.fabric.LocalPositionSync;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,7 +13,7 @@ import static net.pcal.splitscreen.common.logging.SystemLogger.syslog;
 public class IntegratedServerMixin {
 
     @Inject(method = "publishServer", at = @At("RETURN"))
-    private void onPublishServer(GameType gameType, boolean cheatsAllowed, int port, CallbackInfoReturnable<Boolean> cir) {
+    private void onPublishServer(MinecraftServer.MultiplayerScope scope, boolean cheatsAllowed, int port, CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue()) {
             syslog().info("LAN server published on port: " + port);
             LocalPositionSync.broadcastLanServer(port);

@@ -41,15 +41,20 @@ public class AudioManager {
             return;
         }
 
+        // Called from the UDP receiver thread; the player object is not thread-safe
+        // to touch here, so only the position is read, guarded against mid-tick churn.
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             muted = false;
             return;
         }
 
-        double myX = player.getX();
-        double myY = player.getY();
-        double myZ = player.getZ();
+        double myX, myY, myZ;
+        synchronized (AudioManager.class) {
+            myX = player.getX();
+            myY = player.getY();
+            myZ = player.getZ();
+        }
 
         for (Map.Entry<UUID, PlayerPositionsPacket.Entry> e : otherPlayerPositions.entrySet()) {
             PlayerPositionsPacket.Entry other = e.getValue();
@@ -74,5 +79,11 @@ public class AudioManager {
             syslog().info("Audio unmuted (no nearby players)");
         }
         muted = false;
+    }
+
+    public static void onClientTick() {
+        // Re-check proximity on the client thread so muting also clears when a
+        // player walks away without any new UDP packets arriving.
+        recalculate();
     }
 }

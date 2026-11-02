@@ -1,5 +1,8 @@
 package net.pcal.splitscreen.common;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public enum SplitscreenLayout {
     HORIZONTAL("LEFT", "RIGHT"),
     VERTICAL("TOP", "BOTTOM"),
@@ -17,11 +20,28 @@ public enum SplitscreenLayout {
         return positions;
     }
 
+    public String[] getRotatedPositions(int offset) {
+        if (positions.length <= 1) return positions;
+        String[] result = new String[positions.length];
+        for (int i = 0; i < positions.length; i++) {
+            result[i] = positions[(i + offset) % positions.length];
+        }
+        return result;
+    }
+
     public String getPrimaryPosition() {
         return positions[0];
     }
 
-    public String getSecondaryPosition() {
-        return positions.length > 1 ? positions[1] : positions[0];
+    public static String[] getTriplePositions(int offset) {
+        List<String> base = new ArrayList<>();
+        base.add("TOP_LEFT");
+        base.add("TOP_RIGHT");
+        base.add("BOTTOM");
+        String[] result = new String[3];
+        for (int i = 0; i < 3; i++) {
+            result[i] = base.get((i + offset) % 3);
+        }
+        return result;
     }
 }

@@ -72,8 +72,9 @@ public class TitleScreenMixin extends Screen {
     
     @Inject(method = "removed", at = @At("HEAD"))
     private void onRemoved(CallbackInfo ci) {
-        if (lanCheckScheduler != null && !lanCheckScheduler.isShutdown()) {
-            lanCheckScheduler.shutdown();
+        if (lanCheckScheduler != null) {
+            lanCheckScheduler.shutdownNow();
+            lanCheckScheduler = null;
         }
     }
     

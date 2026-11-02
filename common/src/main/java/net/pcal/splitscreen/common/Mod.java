@@ -38,6 +38,8 @@ public class Mod {
     private int currentModeIndex = 0;
     private Rectangle savedWindowRect;
     private boolean autoSyncEnabled = true;
+    private int layoutRotation = 0;
+    private SplitscreenLayout currentLayout = null;
     private ModeChangeListener modeChangeListener;
     private LayoutBroadcastListener layoutBroadcastListener;
     private InstanceCountProvider instanceCountProvider;
@@ -117,10 +119,16 @@ public class Mod {
     }
 
     public void onToggleFullscreen(final MinecraftWindow window) {
-        if (this.savedWindowRect == null || modes.get(currentModeIndex).getStyle() == WindowStyle.WINDOWED) {
-            this.savedWindowRect = window.getWindowBounds();
+        // In 26.3 vanilla fullscreen is toggled via options.fullscreen + Window.updateFullscreenIfChanged();
+        // cycling window modes is now done from the splitscreen layout screen instead.
+        if (this.modes == null) return;
+        boolean targetFullscreen = modes.get(currentModeIndex).getStyle() != WindowStyle.FULLSCREEN;
+        for (int i = 0; i < modes.size(); i++) {
+            if ("FULLSCREEN".equals(modes.get(i).getName())) {
+                this.currentModeIndex = targetFullscreen ? i : 0;
+                break;
+            }
         }
-        currentModeIndex = (currentModeIndex + 1) % modes.size();
         saveConfig();
         repositionWindow(window);
         notifyModeChange();
@@ -183,11 +191,34 @@ public class Mod {
     }
 
     public void applyLayout(SplitscreenLayout layout) {
+        if (layout == currentLayout && layout != null) {
+            layoutRotation++;
+        } else {
+            layoutRotation = 0;
+            currentLayout = layout;
+        }
+
         if (this.layoutBroadcastListener != null) {
             this.layoutBroadcastListener.onLayoutSelected(layout);
         }
 
-        syslog().info("Applied layout: " + layout);
+        syslog().info("Applied layout: " + layout + " rotation: " + layoutRotation);
+    }
+
+    public int getLayoutRotation() {
+        return layoutRotation;
+    }
+
+    public void resetLayoutRotation() {
+        layoutRotation = 0;
+    }
+
+    public SplitscreenLayout getCurrentLayout() {
+        return currentLayout;
+    }
+
+    public void setCurrentLayout(SplitscreenLayout layout) {
+        this.currentLayout = layout;
     }
 
     public interface ModeChangeListener {

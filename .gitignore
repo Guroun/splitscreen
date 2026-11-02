@@ -18,10 +18,7 @@ run/
 logs/
 .architectury-transformer/
 deploy-mod.bat
-gradle.properties
-gradlew
-gradlew.bat
-settings.gradle
-.github/
+net/
+sounds/
 *~
 \#*

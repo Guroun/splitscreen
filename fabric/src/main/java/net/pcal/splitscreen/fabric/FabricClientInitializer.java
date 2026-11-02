@@ -22,6 +22,7 @@ public class FabricClientInitializer implements ClientModInitializer {
                 );
             }
             LocalPositionSync.checkServerConnection();
+            AudioManager.onClientTick();
         });
     }
 }

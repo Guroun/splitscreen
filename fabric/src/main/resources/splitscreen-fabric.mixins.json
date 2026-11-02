@@ -5,10 +5,8 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "KeyboardHandlerMixin",
-    "KeyEventAccessor",
     "IntegratedServerMixin",
     "TitleScreenMixin",
-    "ButtonAccessor",
     "SoundEngineMixin"
   ],
   "injectors": {

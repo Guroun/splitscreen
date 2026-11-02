@@ -1,8 +1,6 @@
 plugins {
     id 'java'
     id 'net.fabricmc.fabric-loom'
-    id 'com.modrinth.minotaur'
-    id 'net.darkhax.curseforgegradle'
 }
 
 base {
@@ -59,39 +57,4 @@ jar {
     from("LICENSE") {
         rename { "${it}_${archivesName}"}
     }
-}
-
-// Publishing configuration
-modrinth {
-    token = System.getenv("MODRINTH_TOKEN")
-    projectId = "${project.modrinth_projectId}"
-    versionNumber = project.mod_version
-    versionType = "release"
-    uploadFile = jar
-    changelog = "<p><a href='${project.github_projectUrl}/releases/tag/${project.mod_version}'>${project.github_projectUrl}/releases/tag/${project.mod_version}</a></p>"
-    gameVersions = ["${project.minecraft_version}"]
-    loaders = ["fabric"]
-    dependencies {
-        required.project "fabric-api"
-    }
-}
-
-import net.darkhax.curseforgegradle.TaskPublishCurseForge
-tasks.register('publishCurseForge', TaskPublishCurseForge) {
-    // API Key from environment or fallback
-    apiToken = System.getenv("CURSEFORGE_TOKEN") ?: 'CURSEFORGE_TOKEN NOT_SET'
-
-    // Configure the main artifact
-    // The plugin automatically detects Fabric & Java version from your Loom setup
-    def mainFile = upload(project.curseforge_projectId, jar)
-
-    mainFile.releaseType = "release"
-    mainFile.changelog = "${project.github_projectUrl}/releases/tag/${project.mod_version}"
-    mainFile.changelogType = "markdown"
-
-    mainFile.addGameVersion(project.minecraft_version)
-    mainFile.addModLoader("Fabric")
-
-    // Ensure jar is finished before this runs
-    dependsOn(jar)
 }

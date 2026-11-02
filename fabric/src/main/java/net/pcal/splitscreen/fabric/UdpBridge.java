@@ -29,6 +29,7 @@ public class UdpBridge {
     private static final Map<UUID, Long> instanceHeartbeats = new ConcurrentHashMap<>();
     private static final Map<UUID, Integer> instanceNumbers = new ConcurrentHashMap<>();
     private static final Set<SocketAddress> clients = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, SocketAddress> instanceEndpoints = new ConcurrentHashMap<>();
 
     private static volatile String lastServerAddress;
     private static volatile String lastLayoutRaw;
@@ -87,10 +88,15 @@ public class UdpBridge {
                     socket.receive(packet);
                     String msg = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
 
-                    if (isServer) {
-                        handleServerMessage(msg, packet.getSocketAddress());
-                    } else {
-                        handleClientMessage(msg);
+                    try {
+                        if (isServer) {
+                            handleServerMessage(msg, packet.getSocketAddress());
+                        } else {
+                            handleClientMessage(msg);
+                        }
+                    } catch (RuntimeException e) {
+                        // A malformed or hostile packet must not kill the receiver thread
+                        syslog().warn("UDP: dropped malformed message: " + e);
                     }
                 } catch (IOException e) {
                     if (running) syslog().error("UDP receive error", e);
@@ -116,7 +122,10 @@ public class UdpBridge {
                         UUID uuid = UUID.fromString(parts[1]);
                         int num = assignInstanceNumber(uuid);
                         instanceHeartbeats.put(uuid, System.currentTimeMillis());
-                        clients.add(sender);
+                        synchronized (UdpBridge.class) {
+                            clients.add(sender);
+                            instanceEndpoints.put(uuid, sender);
+                        }
                         sendToClient(sender, "WELCOME|" + uuid + "|" + num);
                         sendToClient(sender, "SERVER|" + (lastServerAddress != null ? lastServerAddress : ""));
                         if (lastLayoutRaw != null) {
@@ -298,7 +307,6 @@ public class UdpBridge {
             String[] parts = line.trim().split("\\|");
             if (parts.length >= 1) {
                 if ("POS".equals(parts[0])) processPosition(parts);
-                else if ("LAYOUT".equals(parts[0])) processLayout(parts, false);
                 else if ("SERVER".equals(parts[0]) && parts.length >= 2) {
                     lastServerAddress = parts[1].isEmpty() ? null : parts[1];
                     notifyServerHandler(lastServerAddress);
@@ -326,25 +334,33 @@ public class UdpBridge {
     private static void broadcastCount() {
         int count = instanceNumbers.size();
         String msg = "COUNT|" + count;
-        for (SocketAddress client : clients) {
-            sendToClient(client, msg);
+        synchronized (UdpBridge.class) {
+            for (SocketAddress client : clients) {
+                sendToClient(client, msg);
+            }
         }
     }
 
     public static void cleanupStaleInstances() {
-        if (!isServer) return;
+        if (!isServer || !running) return;
         long now = System.currentTimeMillis();
-        boolean removed = false;
-        instanceHeartbeats.entrySet().removeIf(e -> {
+        List<UUID> stale = new ArrayList<>();
+        for (Map.Entry<UUID, Long> e : instanceHeartbeats.entrySet()) {
             if (now - e.getValue() > INSTANCE_TIMEOUT_MS && !e.getKey().equals(myId)) {
-                instanceNumbers.remove(e.getKey());
-                remotePositions.remove(e.getKey());
-                syslog().info("UDP: Removed stale instance " + e.getKey().toString().substring(0, 8));
-                return true;
+                stale.add(e.getKey());
             }
-            return false;
-        });
-        if (removed) {
+        }
+        for (UUID uuid : stale) {
+            instanceHeartbeats.remove(uuid);
+            instanceNumbers.remove(uuid);
+            remotePositions.remove(uuid);
+            SocketAddress endpoint = instanceEndpoints.remove(uuid);
+            if (endpoint != null) {
+                clients.remove(endpoint);
+            }
+            syslog().info("UDP: Removed stale instance " + uuid.toString().substring(0, 8));
+        }
+        if (!stale.isEmpty()) {
             broadcastCount();
             if (onInstanceLeft != null) {
                 Minecraft.getInstance().execute(onInstanceLeft);

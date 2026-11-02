@@ -24,6 +24,9 @@ public class LocalPositionSync {
             Minecraft mc = Minecraft.getInstance();
             mc.execute(() -> {
                 if (!mod().isAutoSyncEnabled()) return;
+                try {
+                    mod().setCurrentLayout(SplitscreenLayout.valueOf(layoutName));
+                } catch (IllegalArgumentException ignored) {}
                 String myPosition = positions[myIndex];
                 String currentMode = mod().getCurrentModeName();
                 if (!myPosition.equals(currentMode)) {
@@ -40,6 +43,7 @@ public class LocalPositionSync {
         UdpBridge.setOnInstanceJoined(() -> {
             int count = UdpBridge.getInstanceCount();
             syslog().info("Instance joined, total: " + count);
+            mod().resetLayoutRotation();
             if (count <= 1) {
                 mod().setModeByName("FULLSCREEN");
             } else if (count >= 3) {
@@ -49,7 +53,11 @@ public class LocalPositionSync {
                 if (lastLayout != null && !lastLayout.isEmpty()) {
                     try {
                         SplitscreenLayout layout = SplitscreenLayout.valueOf(lastLayout);
-                        broadcastLayout(layout);
+                        if (layout == SplitscreenLayout.QUAD) {
+                            broadcastLayout(SplitscreenLayout.HORIZONTAL);
+                        } else {
+                            broadcastLayout(layout);
+                        }
                     } catch (IllegalArgumentException ignored) {
                         broadcastLayout(SplitscreenLayout.HORIZONTAL);
                     }
@@ -90,13 +98,22 @@ public class LocalPositionSync {
 
     private static void broadcastLayout(SplitscreenLayout layout) {
         mod().saveLastLayout(layout.name());
-        UdpBridge.sendLayout(layout.name(), layout.getPositions());
+        int rotation = mod().getLayoutRotation();
+        int count = UdpBridge.getInstanceCount();
 
-        String[] positions = layout.getPositions();
+        String[] positions;
+        if (layout == SplitscreenLayout.QUAD && count == 3) {
+            positions = SplitscreenLayout.getTriplePositions(rotation);
+        } else {
+            positions = layout.getRotatedPositions(rotation);
+        }
+
+        UdpBridge.sendLayout(layout.name(), positions);
+
         int myNum = UdpBridge.getMyInstanceNumber();
         if (myNum >= 0 && myNum < positions.length) {
             mod().setModeByName(positions[myNum]);
-            syslog().info("Applied my position: " + positions[myNum] + " (instance #" + myNum + ")");
+            syslog().info("Applied my position: " + positions[myNum] + " (instance #" + myNum + ", rotation: " + rotation + ")");
         }
     }
 
@@ -110,7 +127,7 @@ public class LocalPositionSync {
                 address = mc.getCurrentServer().ip;
             }
 
-            UdpBridge.sendServerAddress(address);
+            UdpBridge.sendServerAddress(address);  
         } catch (Exception ignored) {}
     }
 

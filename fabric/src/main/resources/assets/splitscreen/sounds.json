@@ -1,0 +1,8 @@
+{
+  "ui_click": {
+    "sounds": ["splitscreen:ui_click"]
+  },
+  "ui_focus": {
+    "sounds": ["splitscreen:ui_focus"]
+  }
+}
