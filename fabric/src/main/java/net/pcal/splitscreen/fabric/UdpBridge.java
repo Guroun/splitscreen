@@ -233,12 +233,9 @@ public class UdpBridge {
     private static void processLayout(String[] parts, boolean fromRelay) {
         try {
             String layoutName = parts[1];
-            if (layoutName.equals(lastAppliedLayout)) return;
-
             String[] positions = parts[2].split(",");
             int myNum = myInstanceNumber;
             if (layoutHandler != null && myNum >= 0 && myNum < positions.length) {
-                lastAppliedLayout = layoutName;
                 layoutHandler.onLayoutReceived(layoutName, positions, myNum);
             }
         } catch (Exception ignored) {}
@@ -307,7 +304,10 @@ public class UdpBridge {
             String[] parts = line.trim().split("\\|");
             if (parts.length >= 1) {
                 if ("POS".equals(parts[0])) processPosition(parts);
-                else if ("SERVER".equals(parts[0]) && parts.length >= 2) {
+                else if ("LAYOUT".equals(parts[0]) && parts.length >= 3) {
+                    lastLayoutRaw = line;
+                    processLayout(parts, false);
+                } else if ("SERVER".equals(parts[0]) && parts.length >= 2) {
                     lastServerAddress = parts[1].isEmpty() ? null : parts[1];
                     notifyServerHandler(lastServerAddress);
                 }
