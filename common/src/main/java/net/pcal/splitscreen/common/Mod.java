@@ -32,7 +32,7 @@ public class Mod {
     private MinecraftWindow unpositionedWindow;
     private MinecraftWindow currentWindow;
     private List<WindowMode> modes;
-    private int gap = 8;
+    private int gap = 0;
     private Properties config;
     private Path configPath;
     private int currentModeIndex = 0;
